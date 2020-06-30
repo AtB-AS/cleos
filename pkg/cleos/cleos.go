@@ -32,7 +32,7 @@ const (
 	ErrForbidden         ErrCleos = "forbidden"
 	ErrConflict          ErrCleos = "report failed execution, contact support"
 	ErrGone              ErrCleos = "no future reports on this templateID will be generated, stop the job or update the templateID"
-	ErrUnknown           ErrCleos = "unknown status"
+	ErrUnknownStatus     ErrCleos = "unknown status"
 
 	dateLayout = "2006-01-02"
 )
@@ -74,12 +74,12 @@ func (s *Service) ClearingReport(ctx context.Context, templateID, IDAfter string
 		return nil, err
 	}
 
-	report := ClearingReportResponse{}
-	err = s.do(req, &report)
+	res := ClearingReportResponse{}
+	err = s.do(req, &res)
 	if err != nil {
 		return nil, err
 	}
-	return &report, nil
+	return &res, nil
 }
 
 func (s *Service) newRequest(ctx context.Context, method, url string, body io.Reader) (*http.Request, error) {
@@ -112,7 +112,7 @@ func (s *Service) do(req *http.Request, v interface{}) error {
 		case http.StatusGone:
 			return ErrGone
 		default:
-			return ErrUnknown
+			return ErrUnknownStatus
 		}
 	}
 
