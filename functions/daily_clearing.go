@@ -63,7 +63,6 @@ func init() {
 // storage bucket. After successful upload it updates the scheduled job that
 // triggers it to include the most recent report ID in its payload
 func DailyClearing(ctx context.Context, m PubSubMessage) error {
-	start := time.Now()
 	var tokenURL, audience, apiBasePath string
 	switch appEnv {
 	case "prod":
@@ -91,24 +90,34 @@ func DailyClearing(ctx context.Context, m PubSubMessage) error {
 	cleosService = cleos.NewService(creds.Client(context.Background()), apiBasePath)
 
 	var job JobDescription
+	var currentID string
 	err := json.Unmarshal(m.Data, &job)
 	if err != nil {
 		return err
 	}
 
-	report, err := cleosService.ClearingReport(ctx, templateID, job.PreviousReportID, defaultDate)
-	if err != nil {
-		return err
+	currentID = job.PreviousReportID
+	for {
+		start := time.Now()
+		report, err := cleosService.ClearingReport(ctx, templateID, currentID, defaultDate)
+		if err != nil {
+			if err == cleos.ErrAllDownloaded {
+				break
+			}
+			return err
+		}
+
+		if err := uploadToCloudStorage(ctx, report); err != nil {
+			return err
+		}
+
+		log.Printf("successfully fetched report %s (%s) in %s", report.ReportID, report.Filename, time.Since(start))
+		currentID = report.ReportID
 	}
 
-	if err := uploadToCloudStorage(ctx, report); err != nil {
+	if err = updateScheduledPayload(currentID); err != nil {
 		return err
 	}
-
-	if err := updateScheduledPayload(report.ReportID); err != nil {
-		return err
-	}
-	log.Printf("successfully fetched report id %s (%s) in %s", report.ReportID, report.Filename, time.Since(start))
 	return nil
 }
 
