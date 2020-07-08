@@ -2,8 +2,8 @@
 This directory contains a Go package suitable for deployment to Google Cloud Functions
 
 ## DailyClearing
-DailyClearing is triggered by Cloud PubSub. It tries to fetch the next report after the `previousReportId`
-parameter in the PubSub message's payload, and uploads it to a cloud storage bucket. If successful it updates
+DailyClearing is triggered by Cloud PubSub. It tries to fetch all available reports using the `previousReportId`
+parameter in the PubSub message's payload, and uploads them to a cloud storage bucket. If successful it updates
 the scheduled job that triggered it with the most recent report ID.
 
 ### Configuration
