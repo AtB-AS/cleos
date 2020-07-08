@@ -99,13 +99,11 @@ func DailyClearing(ctx context.Context, m PubSubMessage) error {
 		return err
 	}
 
-	err = uploadToCloudStorage(ctx, report)
-	if err != nil {
+	if err := uploadToCloudStorage(ctx, report); err != nil {
 		return err
 	}
 
-	err = updateScheduledPayload(report.ReportID)
-	if err != nil {
+	if err := updateScheduledPayload(report.ReportID); err != nil {
 		return err
 	}
 
