@@ -108,14 +108,14 @@ func DailyClearing(ctx context.Context, m PubSubMessage) error {
 	if err := updateScheduledPayload(report.ReportID); err != nil {
 		return err
 	}
-	log.Printf("successfully fetched report id %d (%s) in %s", report.ReportID, report.Filename, time.Since(start))
+	log.Printf("successfully fetched report id %s (%s) in %s", report.ReportID, report.Filename, time.Since(start))
 	return nil
 }
 
 // uploadToCloudStorage writes the current report into a cloud storage bucket
 func uploadToCloudStorage(ctx context.Context, report *cleos.ClearingReportResponse) error {
 	bucket := storageClient.Bucket(bucketID)
-	o := bucket.Object(fmt.Sprintf("%d_%s", report.ReportID, report.Filename))
+	o := bucket.Object(fmt.Sprintf("%s_%s", report.ReportID, report.Filename))
 	w := o.NewWriter(ctx)
 	w.ContentType = report.ContentType
 	_, err := w.Write(report.Content)
