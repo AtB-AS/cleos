@@ -62,6 +62,7 @@ func init() {
 // storage bucket. After successful upload it updates the scheduled job that
 // triggers it to include the most recent report ID in its payload
 func DailyClearing(ctx context.Context, m PubSubMessage) error {
+	start := time.Now()
 	var tokenURL, audience, apiBasePath string
 	switch appEnv {
 	case "prod":
@@ -106,7 +107,7 @@ func DailyClearing(ctx context.Context, m PubSubMessage) error {
 	if err := updateScheduledPayload(report.ReportID); err != nil {
 		return err
 	}
-
+	log.Printf("successfully fetched report id %d (%s) in %s", report.ReportID, report.Filename, time.Since(start))
 	return nil
 }
 
