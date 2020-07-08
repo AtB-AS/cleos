@@ -101,7 +101,7 @@ func DailyClearing(ctx context.Context, m PubSubMessage) error {
 		start := time.Now()
 		report, err := cleosService.ClearingReport(ctx, templateID, currentID, defaultDate)
 		if err != nil {
-			if err == cleos.ErrAllDownloaded {
+			if err == cleos.ErrAllDownloaded || err == cleos.ErrNotGenerated {
 				break
 			}
 			return err
