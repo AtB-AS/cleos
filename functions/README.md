@@ -14,7 +14,7 @@ DailyClearing expects to find these environment variables:
 - `BUCKET_ID`: The bucket to place reports in.
 - `CLEOS_TEMPLATE_ID`: The CLEOS template ID to fetch.
 - `CLIENT_ID`: The client id used for authenticating with CLEOS.
-- `CLIENT_SECRET`: The client secred used for authenticating with CLEOS.
+- `CLIENT_SECRET`: The client secret used for authenticating with CLEOS.
 - `SCHEDULED_JOB_ID`: The id of the scheduled job to update. Example value: `projects/{PROJECT_ID}/locations/{LOCATION}/jobs/{JOB_NAME}`
 
 #### Deployment
