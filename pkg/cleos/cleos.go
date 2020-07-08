@@ -33,8 +33,8 @@ const (
 	ErrConflict          ErrCleos = "report failed execution, contact support"
 	ErrGone              ErrCleos = "no future reports on this templateID will be generated, stop the job or update the templateID"
 	ErrUnknownStatus     ErrCleos = "unknown status"
-
-	dateLayout = "2006-01-02"
+	ErrInvalidArguments  ErrCleos = "invalid arguments"
+	dateLayout                    = "2006-01-02"
 )
 
 type ErrCleos string
@@ -111,6 +111,8 @@ func (s *Service) do(req *http.Request, v interface{}) error {
 			return ErrConflict
 		case http.StatusGone:
 			return ErrGone
+		case http.StatusBadRequest:
+			return ErrInvalidArguments
 		default:
 			return ErrUnknownStatus
 		}
