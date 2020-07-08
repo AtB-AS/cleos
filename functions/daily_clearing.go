@@ -74,7 +74,7 @@ func DailyClearing(ctx context.Context, m PubSubMessage) error {
 		apiBasePath = cleos.BasePathStaging
 	default:
 		tokenURL = cleos.TokenURLDev
-		audience = cleos.TokenURLDev
+		audience = cleos.AudienceDev
 		apiBasePath = cleos.BasePathDev
 	}
 
