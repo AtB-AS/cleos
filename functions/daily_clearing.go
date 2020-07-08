@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/url"
 	"os"
@@ -114,8 +115,7 @@ func DailyClearing(ctx context.Context, m PubSubMessage) error {
 // uploadToCloudStorage writes the current report into a cloud storage bucket
 func uploadToCloudStorage(ctx context.Context, report *cleos.ClearingReportResponse) error {
 	bucket := storageClient.Bucket(bucketID)
-
-	o := bucket.Object(report.Filename)
+	o := bucket.Object(fmt.Sprintf("%d_%s", report.ReportID, report.Filename))
 	w := o.NewWriter(ctx)
 	w.ContentType = report.ContentType
 	_, err := w.Write(report.Content)
