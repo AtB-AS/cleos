@@ -39,8 +39,13 @@ type PubSubMessage struct {
 	Data []byte `json:"data"`
 }
 
-// JobDescription represents properties of the scheduled job
-type JobDescription struct {
+type config struct {
+	tokenURL    string
+	audience    string
+	apiBasePath string
+}
+
+type jobDescription struct {
 	PreviousReportID string `json:"previousReportId"`
 }
 
@@ -68,14 +73,8 @@ func init() {
 	if err != nil {
 		log.Fatal(err)
 	}
-}
 
-type config struct {
-	tokenURL    string
-	audience    string
-	apiBasePath string
 }
-
 func configFromEnvironment(env string) config {
 	var cfg config
 	switch env {
@@ -101,7 +100,7 @@ func configFromEnvironment(env string) config {
 // storage bucket. After successful upload it updates the scheduled job that
 // triggers it to include the most recent report ID in its payload
 func DailyClearing(ctx context.Context, m PubSubMessage) error {
-	var job JobDescription
+	var job jobDescription
 	var currentID string
 	err := json.Unmarshal(m.Data, &job)
 	if err != nil {
@@ -155,7 +154,7 @@ func uploadToCloudStorage(ctx context.Context, report *cleos.Report) error {
 // updateScheduledPayload updates the payload of the next scheduled pubsub
 // message to the trigger channel to match the most recent report ID
 func updateScheduledPayload(reportID string) error {
-	var jobDesc = JobDescription{
+	var jobDesc = jobDescription{
 		PreviousReportID: reportID,
 	}
 
