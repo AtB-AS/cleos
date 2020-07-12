@@ -48,6 +48,18 @@ type JobDescription struct {
 // function invocations and add to overall function latency
 func init() {
 	var err error
+
+	cfg := configFromEnvironment(appEnv)
+	creds := clientcredentials.Config{
+		ClientID:     clientID,
+		ClientSecret: clientSecret,
+		TokenURL:     cfg.tokenURL,
+		EndpointParams: url.Values{
+			"audience": {cfg.audience},
+		},
+	}
+	cleosService = cleos.NewService(creds.Client(context.Background()), cfg.apiBasePath)
+
 	schedulerService, err = cloudscheduler.NewService(context.Background())
 	if err != nil {
 		log.Fatal(err)
@@ -58,37 +70,37 @@ func init() {
 	}
 }
 
+type config struct {
+	tokenURL    string
+	audience    string
+	apiBasePath string
+}
+
+func configFromEnvironment(env string) config {
+	var cfg config
+	switch env {
+	case "prod":
+		cfg.tokenURL = cleos.TokenURLProd
+		cfg.audience = cleos.AudienceProd
+		cfg.apiBasePath = cleos.BasePathProd
+	case "staging":
+		cfg.tokenURL = cleos.TokenURLStaging
+		cfg.audience = cleos.AudienceStaging
+		cfg.apiBasePath = cleos.BasePathStaging
+	default:
+		cfg.tokenURL = cleos.TokenURLDev
+		cfg.audience = cleos.AudienceDev
+		cfg.apiBasePath = cleos.BasePathDev
+	}
+
+	return cfg
+}
+
 // DailyClearing is triggered by pubsub with a payload of JobDescription. It
 // fetches the most recent CLEOS clearing report and uploads it to a cloud
 // storage bucket. After successful upload it updates the scheduled job that
 // triggers it to include the most recent report ID in its payload
 func DailyClearing(ctx context.Context, m PubSubMessage) error {
-	var tokenURL, audience, apiBasePath string
-	switch appEnv {
-	case "prod":
-		tokenURL = cleos.TokenURLProd
-		audience = cleos.AudienceProd
-		apiBasePath = cleos.BasePathProd
-	case "staging":
-		tokenURL = cleos.TokenURLStaging
-		audience = cleos.AudienceStaging
-		apiBasePath = cleos.BasePathStaging
-	default:
-		tokenURL = cleos.TokenURLDev
-		audience = cleos.AudienceDev
-		apiBasePath = cleos.BasePathDev
-	}
-
-	creds := clientcredentials.Config{
-		ClientID:     clientID,
-		ClientSecret: clientSecret,
-		TokenURL:     tokenURL,
-		EndpointParams: url.Values{
-			"audience": {audience},
-		},
-	}
-	cleosService = cleos.NewService(creds.Client(context.Background()), apiBasePath)
-
 	var job JobDescription
 	var currentID string
 	err := json.Unmarshal(m.Data, &job)
