@@ -41,7 +41,7 @@ type ErrCleos string
 
 func (e ErrCleos) Error() string { return string(e) }
 
-type ClearingReportResponse struct {
+type Report struct {
 	Content     []byte
 	ContentType string
 	Filename    string
@@ -60,7 +60,9 @@ func NewService(client *http.Client, basePath string) *Service {
 	}
 }
 
-func (s *Service) ClearingReport(ctx context.Context, templateID, IDAfter string, firstOrderedDate time.Time) (*ClearingReportResponse, error) {
+// NextReport fetches the next available report for templateID generated after
+// IDAfter on or after firstOrderedDate
+func (s *Service) NextReport(ctx context.Context, templateID, IDAfter string, firstOrderedDate time.Time) (*Report, error) {
 	d := firstOrderedDate.Format(dateLayout)
 	q := url.Values{
 		"templateId":       []string{templateID},
@@ -74,7 +76,7 @@ func (s *Service) ClearingReport(ctx context.Context, templateID, IDAfter string
 		return nil, err
 	}
 
-	res := ClearingReportResponse{}
+	res := Report{}
 	err = s.do(req, &res)
 	if err != nil {
 		return nil, err
@@ -140,7 +142,7 @@ func (s *Service) do(req *http.Request, v interface{}) error {
 	contentType := res.Header.Get("Content-Type")
 
 	switch t := v.(type) {
-	case *ClearingReportResponse:
+	case *Report:
 		t.Content = body
 		t.Filename = params["filename"]
 		t.ReportID = reportId
