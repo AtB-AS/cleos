@@ -111,7 +111,7 @@ func DailyClearing(ctx context.Context, m PubSubMessage) error {
 	currentID = job.PreviousReportID
 	for {
 		start := time.Now()
-		report, err := cleosService.ClearingReport(ctx, templateID, currentID, defaultDate)
+		report, err := cleosService.NextReport(ctx, templateID, currentID, defaultDate)
 		if err != nil {
 			if err == cleos.ErrAllDownloaded || err == cleos.ErrNotGenerated {
 				break
@@ -134,7 +134,7 @@ func DailyClearing(ctx context.Context, m PubSubMessage) error {
 }
 
 // uploadToCloudStorage writes the current report into a cloud storage bucket
-func uploadToCloudStorage(ctx context.Context, report *cleos.ClearingReportResponse) error {
+func uploadToCloudStorage(ctx context.Context, report *cleos.Report) error {
 	bucket := storageClient.Bucket(bucketID)
 	o := bucket.Object(fmt.Sprintf("%s_%s", report.ReportID, report.Filename))
 	w := o.NewWriter(ctx)
