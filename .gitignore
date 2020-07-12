@@ -1,0 +1,5 @@
+functions/vendor
+.idea
+.vscode
+.env
+secrets-*
