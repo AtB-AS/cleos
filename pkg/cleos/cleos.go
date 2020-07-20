@@ -25,16 +25,15 @@ const (
 	AudienceStaging = "https://cleos.staging.entur.io"
 	AudienceProd    = "https://cleos.entur.io"
 
-	ErrUnknownReportType ErrCleos = "supplied report type is unknown"
-	ErrAllDownloaded     ErrCleos = "all available reports downloaded, retry later"
-	ErrNotGenerated      ErrCleos = "report is being generated, retry later"
-	ErrUnauthorized      ErrCleos = "unauthorized"
-	ErrForbidden         ErrCleos = "forbidden"
-	ErrConflict          ErrCleos = "report failed execution, contact support"
-	ErrGone              ErrCleos = "no future reports on this templateID will be generated, stop the job or update the templateID"
-	ErrUnknownStatus     ErrCleos = "unknown status"
-	ErrInvalidArguments  ErrCleos = "invalid arguments"
-	dateLayout                    = "2006-01-02"
+	ErrAllDownloaded    ErrCleos = "all available reports downloaded, retry later"
+	ErrNotGenerated     ErrCleos = "report is being generated, retry later"
+	ErrUnauthorized     ErrCleos = "unauthorized"
+	ErrForbidden        ErrCleos = "forbidden"
+	ErrConflict         ErrCleos = "report failed execution, contact support"
+	ErrGone             ErrCleos = "no future reports on this templateID will be generated, stop the job or update the templateID"
+	ErrUnknownStatus    ErrCleos = "unknown status"
+	ErrInvalidArguments ErrCleos = "invalid arguments"
+	cleosDateLayout              = "2006-01-02"
 )
 
 type ErrCleos string
@@ -63,11 +62,11 @@ func NewService(client *http.Client, basePath string) *Service {
 // NextReport fetches the next available report for templateID generated after
 // IDAfter on or after firstOrderedDate
 func (s *Service) NextReport(ctx context.Context, templateID, IDAfter string, firstOrderedDate time.Time) (*Report, error) {
-	d := firstOrderedDate.Format(dateLayout)
+	d := firstOrderedDate.Format(cleosDateLayout)
 	q := url.Values{
-		"templateId":       []string{templateID},
-		"idAfter":          []string{IDAfter},
-		"firstOrderedDate": []string{d},
+		"templateId":       {templateID},
+		"idAfter":          {IDAfter},
+		"firstOrderedDate": {d},
 	}
 	endpoint := fmt.Sprintf("%s/partner-reports/report/next/content?%s", s.basePath, q.Encode())
 
@@ -76,12 +75,21 @@ func (s *Service) NextReport(ctx context.Context, templateID, IDAfter string, fi
 		return nil, err
 	}
 
-	res := Report{}
-	err = s.do(req, &res)
+	res, err := s.do(req)
 	if err != nil {
 		return nil, err
 	}
-	return &res, nil
+
+	filename, err := res.filename()
+	if err != nil {
+		return nil, err
+	}
+	return &Report{
+		Content:     res.content,
+		ContentType: res.contentType(),
+		Filename:    filename,
+		ReportID:    res.reportID(),
+	}, nil
 }
 
 func (s *Service) newRequest(ctx context.Context, method, url string, body io.Reader) (*http.Request, error) {
@@ -92,64 +100,72 @@ func (s *Service) newRequest(ctx context.Context, method, url string, body io.Re
 	return req, nil
 }
 
-func (s *Service) do(req *http.Request, v interface{}) error {
+type cleosResponse struct {
+	content []byte
+	headers http.Header
+}
+
+func (c *cleosResponse) contentType() string {
+	return c.headers.Get("Content-Type")
+}
+
+func (c *cleosResponse) reportID() string {
+	return c.headers.Get("X-Entur-Report-Id")
+}
+
+// Extracts the filename key from the Content-Disposition header. If the value
+// contains spaces, Cleos will not quote it which violates RFC2183 and makes
+// mime.ParseMediaType choke. Work around it by always quoting the value.
+func (c *cleosResponse) filename() (string, error) {
+	contentDisposition := c.headers.Get("Content-Disposition")
+	re := regexp.MustCompile("filename=([^;]+)")
+	quoted := re.ReplaceAllString(contentDisposition, "filename=\"$1\"")
+
+	_, params, err := mime.ParseMediaType(quoted)
+	if err != nil {
+		return "", err
+	}
+
+	return params["filename"], nil
+}
+
+func (s *Service) do(req *http.Request) (*cleosResponse, error) {
 	res, err := s.client.Do(req)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	defer res.Body.Close()
+	defer func() {
+		_ = res.Body.Close()
+	}()
 
 	if res.StatusCode != http.StatusOK {
 		switch res.StatusCode {
 		case http.StatusAccepted:
-			return ErrAllDownloaded
+			return nil, ErrAllDownloaded
 		case http.StatusNoContent:
-			return ErrNotGenerated
+			return nil, ErrNotGenerated
 		case http.StatusUnauthorized:
-			return ErrUnauthorized
+			return nil, ErrUnauthorized
 		case http.StatusForbidden:
-			return ErrForbidden
+			return nil, ErrForbidden
 		case http.StatusConflict:
-			return ErrConflict
+			return nil, ErrConflict
 		case http.StatusGone:
-			return ErrGone
+			return nil, ErrGone
 		case http.StatusBadRequest:
-			return ErrInvalidArguments
+			return nil, ErrInvalidArguments
 		default:
-			return ErrUnknownStatus
+			return nil, ErrUnknownStatus
 		}
 	}
 
-	if v == nil {
-		return nil
-	}
-
-	body, err := ioutil.ReadAll(res.Body)
+	content, err := ioutil.ReadAll(res.Body)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	contentDisposition := res.Header.Get("Content-Disposition")
-	// Work around an issue where the returned Content-Disposition header values
-	// are unquoted
-	re := regexp.MustCompile("=(.+)$")
-	quoted := re.ReplaceAllString(contentDisposition, "=\"$1\"")
-	_, params, err := mime.ParseMediaType(quoted)
-	if err != nil {
-		return err
-	}
-	reportId := res.Header.Get("X-Entur-Report-Id")
-	contentType := res.Header.Get("Content-Type")
-
-	switch t := v.(type) {
-	case *Report:
-		t.Content = body
-		t.Filename = params["filename"]
-		t.ReportID = reportId
-		t.ContentType = contentType
-	default:
-		return ErrUnknownReportType
-	}
-
-	return nil
+	return &cleosResponse{
+		content: content,
+		headers: res.Header,
+	}, nil
 }
