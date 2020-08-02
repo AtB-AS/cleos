@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"net/url"
 	"os"
@@ -17,10 +18,10 @@ import (
 )
 
 var (
-	projectID  = os.Getenv("GCP_PROJECT")
-	bucketID   = os.Getenv("BUCKET_ID")
-	jobID      = os.Getenv("SCHEDULED_JOB_ID")
-	templateID = os.Getenv("CLEOS_TEMPLATE_ID")
+	projectID    = os.Getenv("GCP_PROJECT")
+	bucketHandle = os.Getenv("BUCKET_ID")
+	jobID        = os.Getenv("SCHEDULED_JOB_ID")
+	templateID   = os.Getenv("CLEOS_TEMPLATE_ID")
 
 	clientID     = os.Getenv("CLIENT_ID")
 	clientSecret = os.Getenv("CLIENT_SECRET")
@@ -117,8 +118,15 @@ func DailyClearing(ctx context.Context, m PubSubMessage) error {
 			}
 			return err
 		}
-
-		if err := uploadToCloudStorage(ctx, report); err != nil {
+		w := newBucketWriter(
+			ctx,
+			bucketHandle,
+			fmt.Sprintf("%s_%s", report.ReportID, report.Filename),
+			report.ContentType)
+		if _, err := w.Write(report.Content); err != nil {
+			return err
+		}
+		if err := w.Close(); err != nil {
 			return err
 		}
 
@@ -132,23 +140,11 @@ func DailyClearing(ctx context.Context, m PubSubMessage) error {
 	return nil
 }
 
-// uploadToCloudStorage writes the current report into a cloud storage bucket
-func uploadToCloudStorage(ctx context.Context, report *cleos.Report) error {
-	bucket := storageClient.Bucket(bucketID)
-	o := bucket.Object(fmt.Sprintf("%s_%s", report.ReportID, report.Filename))
-	w := o.NewWriter(ctx)
-	w.ContentType = report.ContentType
-	_, err := w.Write(report.Content)
-	if err != nil {
-		return err
-	}
-
-	err = w.Close()
-	if err != nil {
-		return err
-	}
-
-	return nil
+func newBucketWriter(ctx context.Context, bucketHandle, name, contentType string) io.WriteCloser {
+	bucket := storageClient.Bucket(bucketHandle)
+	w := bucket.Object(name).NewWriter(ctx)
+	w.ContentType = contentType
+	return w
 }
 
 // updateScheduledPayload updates the payload of the next scheduled pubsub
