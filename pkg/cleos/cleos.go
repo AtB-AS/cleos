@@ -24,7 +24,12 @@ const (
 	AudienceDev     = "https://cleos.dev.entur.io"
 	AudienceStaging = "https://cleos.staging.entur.io"
 	AudienceProd    = "https://cleos.entur.io"
+	cleosDateLayout = "2006-01-02"
+)
 
+type ErrCleos string
+
+const (
 	ErrAllDownloaded    ErrCleos = "all available reports downloaded, retry later"
 	ErrNotGenerated     ErrCleos = "report is being generated, retry later"
 	ErrUnauthorized     ErrCleos = "unauthorized"
@@ -33,18 +38,15 @@ const (
 	ErrGone             ErrCleos = "no future reports on this templateID will be generated, stop the job or update the templateID"
 	ErrUnknownStatus    ErrCleos = "unknown status"
 	ErrInvalidArguments ErrCleos = "invalid arguments"
-	cleosDateLayout              = "2006-01-02"
 )
-
-type ErrCleos string
 
 func (e ErrCleos) Error() string { return string(e) }
 
 type Report struct {
+	ID          string
 	Content     []byte
 	ContentType string
 	Filename    string
-	ReportID    string
 }
 
 type Service struct {
@@ -88,7 +90,7 @@ func (s *Service) NextReport(ctx context.Context, templateID, IDAfter string, fi
 		Content:     res.content,
 		ContentType: res.contentType(),
 		Filename:    filename,
-		ReportID:    res.reportID(),
+		ID:          res.reportID(),
 	}, nil
 }
 
@@ -98,11 +100,6 @@ func (s *Service) newRequest(ctx context.Context, method, url string, body io.Re
 		return nil, err
 	}
 	return req, nil
-}
-
-type cleosResponse struct {
-	content []byte
-	headers http.Header
 }
 
 func (c *cleosResponse) contentType() string {
@@ -127,6 +124,11 @@ func (c *cleosResponse) filename() (string, error) {
 	}
 
 	return params["filename"], nil
+}
+
+type cleosResponse struct {
+	content []byte
+	headers http.Header
 }
 
 func (s *Service) do(req *http.Request) (*cleosResponse, error) {
@@ -158,7 +160,6 @@ func (s *Service) do(req *http.Request) (*cleosResponse, error) {
 			return nil, ErrUnknownStatus
 		}
 	}
-
 	content, err := ioutil.ReadAll(res.Body)
 	if err != nil {
 		return nil, err
