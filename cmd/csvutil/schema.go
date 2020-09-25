@@ -5,11 +5,9 @@ import (
 	"math"
 	"strings"
 	"time"
-
-	"github.com/atb-as/cleos/pkg/cleos/s1"
 )
 
-func createSchema(r *s1.Reader, tableName string) (string, error) {
+func createSchema(r csvReader, tableName string) (string, error) {
 	header, err := r.Header()
 	if err != nil {
 		return "", err
