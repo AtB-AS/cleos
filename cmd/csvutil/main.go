@@ -2,11 +2,12 @@ package main
 
 import (
 	"context"
-	"encoding/csv"
 	"fmt"
 	"os"
 
 	_ "github.com/lib/pq"
+
+	"github.com/atb-as/cleos/pkg/cleos/s1"
 )
 
 func main() {
@@ -22,40 +23,36 @@ func run() error {
 	switch os.Args[1] {
 	case "schema":
 		args := os.Args[2:]
-		if len(args) < 1 {
-			fmt.Fprintf(os.Stderr, "usage: %s %s file.csv\n", os.Args[0], os.Args[1])
+		if len(args) < 2 {
+			fmt.Fprintf(os.Stderr, "usage: %s %s tableName file.csv\n", os.Args[0], os.Args[1])
 			os.Exit(1)
 		}
-		file, err := os.Open(args[0])
+
+		file, err := os.Open(args[1])
 		if err != nil {
 			return err
 		}
 
-		reader := csv.NewReader(file)
-		reader.Comma = ';'
-
-		s, err := createSchema(reader)
+		s1reader := s1.NewReader(file)
+		s, err := createSchema(s1reader, args[0])
 		if err != nil {
 			return err
 		}
 		fmt.Println(s)
 	case "insert":
 		args := os.Args[2:]
-		if len(args) < 1 {
-			fmt.Fprintf(os.Stderr, "usage: %s %s file.csv", os.Args[0], os.Args[1])
+		if len(args) < 2 {
+			fmt.Fprintf(os.Stderr, "usage: %s %s tableName file.csv", os.Args[0], os.Args[1])
 			os.Exit(1)
 		}
-		file, err := os.Open(args[0])
+		file, err := os.Open(args[1])
 		if err != nil {
 			return err
 		}
 
-		r := csv.NewReader(file)
-		r.Comma = ';'
+		reader := s1.NewReader(file)
 
-		reader := &csvReaderImpl{r: r}
-
-		return insertCSV(context.Background(), reader)
+		return insertCSV(context.Background(), reader, args[0])
 	default:
 		printUsage()
 	}

@@ -13,13 +13,13 @@ import (
 
 type csvReader interface {
 	Header() ([]string, error)
-	Next() ([]string, error)
+	Row() ([]interface{}, error)
 }
 
-func insertCSV(ctx context.Context, r csvReader) error {
+func insertCSV(ctx context.Context, r csvReader, tableName string) error {
 	var insertTmpl = template.Must(template.New("insertTmpl").Parse(`
 INSERT into {{ .Name }} ({{ .Columns }})
-VALUES ({{ .ValuePlaceholders }})`))
+VALUES ({{ .Placeholders }})`))
 	var (
 		user     = os.Getenv("DB_USER")
 		port     = os.Getenv("DB_PORT")
@@ -43,15 +43,14 @@ VALUES ({{ .ValuePlaceholders }})`))
 	if err != nil {
 		return err
 	}
-	placeholders := placeHoldersFor(header)
 
 	// Populate and execute our template.
 	var buf bytes.Buffer
 	var data = struct {
-		Name              string
-		Columns           string
-		ValuePlaceholders string
-	}{"sales_transactions", columnsFor(header), placeholders}
+		Name         string
+		Columns      string
+		Placeholders string
+	}{tableName, columns(header), placeholders(header)}
 	if err = insertTmpl.Execute(&buf, data); err != nil {
 		return err
 	}
@@ -61,10 +60,13 @@ VALUES ({{ .ValuePlaceholders }})`))
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback()
+	defer func() error {
+		err = tx.Rollback()
+		return err
+	}()
 
 	for {
-		row, err := r.Next()
+		row, err := r.Row()
 		if err == io.EOF {
 			break
 		}
@@ -72,7 +74,7 @@ VALUES ({{ .ValuePlaceholders }})`))
 			return err
 		}
 
-		if _, err := tx.ExecContext(ctx, insertStmt, valuesFor(row)...); err != nil {
+		if _, err := tx.ExecContext(ctx, insertStmt, row...); err != nil {
 			return err
 		}
 	}
@@ -83,7 +85,7 @@ VALUES ({{ .ValuePlaceholders }})`))
 	return nil
 }
 
-func placeHoldersFor(in []string) string {
+func placeholders(in []string) string {
 	var s strings.Builder
 	for i := range in {
 		s.WriteString(fmt.Sprintf("$%d", i+1))
@@ -94,34 +96,6 @@ func placeHoldersFor(in []string) string {
 	return s.String()
 }
 
-func columnsFor(hdr []string) string {
+func columns(hdr []string) string {
 	return strings.Join(hdr, ",")
-}
-
-func valuesFor(row []string) []interface{} {
-	var out = make([]interface{}, 0, len(row))
-
-	for _, v := range row {
-		i, err := parseInt(v)
-		if err == nil {
-			out = append(out, i)
-			continue
-		}
-
-		f, err := parseFloat(v)
-		if err == nil {
-			out = append(out, f)
-			continue
-		}
-
-		d, err := parseDateTime(v)
-		if err == nil {
-			out = append(out, d)
-			continue
-		}
-
-		out = append(out, v)
-	}
-
-	return out
 }

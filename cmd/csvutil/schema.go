@@ -1,19 +1,21 @@
 package main
 
 import (
-	"encoding/csv"
 	"fmt"
-	"io"
+	"math"
 	"strings"
+	"time"
+
+	"github.com/atb-as/cleos/pkg/cleos/s1"
 )
 
-func createSchema(r *csv.Reader) (string, error) {
-	header, err := r.Read()
+func createSchema(r *s1.Reader, tableName string) (string, error) {
+	header, err := r.Header()
 	if err != nil {
 		return "", err
 	}
 
-	row1, err := r.Read()
+	row1, err := r.Row()
 	if err != nil {
 		return "", err
 	}
@@ -24,32 +26,21 @@ func createSchema(r *csv.Reader) (string, error) {
 			s.Write([]byte(",\n"))
 		}
 	}
-	writeSchemaHeader(s, "sales_transactions")
-	for i, column := range row1 {
-		hdr := header[i]
-		last := i == len(header)-1
 
-		_, err = parseInt(column)
-		if err == nil {
-			writeIntColumn(s, hdr)
-			writeComma(last)
-			continue
+	writeSchemaHeader(s, tableName)
+	for i, val := range row1 {
+		last := i == len(row1)-1
+		colName := header[i]
+		switch t := val.(type) {
+		case string:
+			writeStringColumn(s, colName, len(t))
+		case float64:
+			writeFloatColumn(s, colName)
+		case time.Time:
+			writeDateColumn(s, colName)
+		case int:
+			writeIntColumn(s, colName, t)
 		}
-
-		_, err := parseFloat(column)
-		if err == nil {
-			writeFloatColumn(s, hdr)
-			writeComma(last)
-			continue
-		}
-
-		_, err = parseDateTime(column)
-		if err == nil {
-			writeDateColumn(s, hdr)
-			writeComma(last)
-			continue
-		}
-		writeStringColumn(s, hdr, row1[i])
 		writeComma(last)
 	}
 	writeSchemaFooter(s)
@@ -57,38 +48,42 @@ func createSchema(r *csv.Reader) (string, error) {
 	return s.String(), nil
 }
 
-func writeStringColumn(w io.Writer, hdr string, v string) {
+func writeStringColumn(s *strings.Builder, colName string, length int) {
 	sz := 255
 	for {
-		if len(v) < sz {
+		if length < sz {
 			break
 		}
 		sz += sz
 	}
-	w.Write([]byte(fmt.Sprintf("%s varchar(%d)", strings.ToLower(hdr), sz)))
+	s.WriteString(fmt.Sprintf("%s varchar(%d)", strings.ToLower(colName), sz))
 }
 
-func writeDateColumn(w io.Writer, hdr string) {
+func writeDateColumn(s *strings.Builder, colName string) {
 	// Naive as we are, this is probably good enough for this use case.
-	if strings.Contains(strings.ToLower(hdr), "time") {
-		w.Write([]byte(fmt.Sprintf("%s time", strings.ToLower(hdr))))
+	if strings.Contains(strings.ToLower(colName), "time") {
+		s.WriteString(fmt.Sprintf("%s time", strings.ToLower(colName)))
 		return
 	}
-	w.Write([]byte(fmt.Sprintf("%s date", strings.ToLower(hdr))))
+	s.WriteString(fmt.Sprintf("%s date", strings.ToLower(colName)))
 }
 
-func writeIntColumn(w io.Writer, hdr string) {
-	w.Write([]byte(fmt.Sprintf("%s int", strings.ToLower(hdr))))
+func writeIntColumn(s *strings.Builder, colName string, t int) {
+	if t > math.MaxInt32 {
+		s.WriteString(fmt.Sprintf("%s bigint", strings.ToLower(colName)))
+		return
+	}
+	s.WriteString(fmt.Sprintf("%s int", strings.ToLower(colName)))
 }
 
-func writeFloatColumn(w io.Writer, hdr string) {
-	w.Write([]byte(fmt.Sprintf("%s numeric", strings.ToLower(hdr))))
+func writeFloatColumn(s *strings.Builder, colName string) {
+	s.WriteString(fmt.Sprintf("%s numeric", strings.ToLower(colName)))
 }
 
-func writeSchemaFooter(w io.Writer) {
-	w.Write([]byte("\n);"))
+func writeSchemaFooter(s *strings.Builder) {
+	s.WriteString("\n);")
 }
 
-func writeSchemaHeader(w io.Writer, tableName string) {
-	w.Write([]byte(fmt.Sprintf("CREATE TABLE %s (\n", tableName)))
+func writeSchemaHeader(s *strings.Builder, tableName string) {
+	s.WriteString(fmt.Sprintf("CREATE TABLE %s (\n", tableName))
 }
