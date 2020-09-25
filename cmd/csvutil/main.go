@@ -62,6 +62,7 @@ func run() error {
 func printUsage() {
 	fmt.Println(`invalid command, valid commands are:
 
+	insert	insert values from csv file
 	schema	generate sql schema from csv headers`)
 	os.Exit(1)
 }
