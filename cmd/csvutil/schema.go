@@ -19,31 +19,33 @@ func createSchema(r csvReader, tableName string) (string, error) {
 	}
 
 	s := &strings.Builder{}
-	writeComma := func(v bool) {
-		if !v {
-			s.Write([]byte(",\n"))
-		}
-	}
 
 	writeSchemaHeader(s, tableName)
 	for i, val := range row1 {
-		last := i == len(row1)-1
 		colName := header[i]
 		switch t := val.(type) {
-		case string:
-			writeStringColumn(s, colName, len(t))
 		case float64:
 			writeFloatColumn(s, colName)
 		case time.Time:
 			writeDateColumn(s, colName)
 		case int:
 			writeIntColumn(s, colName, t)
+		case string:
+			writeStringColumn(s, colName, len(t))
+		default:
+			return "", fmt.Errorf("unrecognized type for column %d", i)
 		}
-		writeComma(last)
+		if i != len(row1)-1 {
+			writeComma(s)
+		}
 	}
 	writeSchemaFooter(s)
 
 	return s.String(), nil
+}
+
+func writeComma(s *strings.Builder) {
+	s.Write([]byte(",\n"))
 }
 
 func writeStringColumn(s *strings.Builder, colName string, length int) {
