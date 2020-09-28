@@ -1,4 +1,4 @@
-package main
+package postgres
 
 import (
 	"fmt"
@@ -7,22 +7,18 @@ import (
 	"time"
 )
 
-func createSchema(r csvReader, tableName string) (string, error) {
-	header, err := r.Header()
-	if err != nil {
-		return "", err
+// Schema returns a SQL statement for creating a table for the values contained
+// in data. columns specifies column names. data and columns must have the same
+// length.
+func Schema(columns []string, data []interface{}, tableName string) (string, error) {
+	if len(columns) != len(data) {
+		return "", fmt.Errorf("columns and data data have different lengths")
 	}
-
-	row1, err := r.Row()
-	if err != nil {
-		return "", err
-	}
-
 	s := &strings.Builder{}
 
 	writeSchemaHeader(s, tableName)
-	for i, val := range row1 {
-		colName := header[i]
+	for i, val := range data {
+		colName := columns[i]
 		switch t := val.(type) {
 		case float64:
 			writeFloatColumn(s, colName)
@@ -35,7 +31,7 @@ func createSchema(r csvReader, tableName string) (string, error) {
 		default:
 			return "", fmt.Errorf("unrecognized type for column %d", i)
 		}
-		if i != len(row1)-1 {
+		if i != len(data)-1 {
 			writeComma(s)
 		}
 	}
@@ -60,7 +56,7 @@ func writeStringColumn(s *strings.Builder, colName string, length int) {
 }
 
 func writeDateColumn(s *strings.Builder, colName string) {
-	// Naive as we are, this is probably good enough for this use case.
+	// Naive as we are, this is probably good enough for our use case.
 	if strings.Contains(strings.ToLower(colName), "time") {
 		s.WriteString(fmt.Sprintf("%s time", strings.ToLower(colName)))
 		return
@@ -85,5 +81,5 @@ func writeSchemaFooter(s *strings.Builder) {
 }
 
 func writeSchemaHeader(s *strings.Builder, tableName string) {
-	s.WriteString(fmt.Sprintf("CREATE TABLE %s (\n", tableName))
+	s.WriteString(fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (\n", tableName))
 }

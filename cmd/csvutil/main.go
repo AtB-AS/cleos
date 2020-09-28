@@ -7,6 +7,7 @@ import (
 
 	_ "github.com/lib/pq"
 
+	"github.com/atb-as/cleos/pkg/cleos/postgres"
 	"github.com/atb-as/cleos/pkg/cleos/s1"
 )
 
@@ -34,7 +35,18 @@ func run() error {
 		}
 
 		s1reader := s1.NewReader(file)
-		s, err := createSchema(s1reader, args[0])
+
+		hdr, err := s1reader.Header()
+		if err != nil {
+			return err
+		}
+
+		row1, err := s1reader.Row()
+		if err != nil {
+			return err
+		}
+
+		s, err := postgres.Schema(hdr, row1, args[0])
 		if err != nil {
 			return err
 		}
