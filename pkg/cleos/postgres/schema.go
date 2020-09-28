@@ -27,7 +27,7 @@ func Schema(columns []string, data []interface{}, tableName string) (string, err
 		case int:
 			writeIntColumn(s, colName, t)
 		case string:
-			writeStringColumn(s, colName, len(t))
+			writeStringColumn(s, colName)
 		default:
 			return "", fmt.Errorf("unrecognized type for column %d", i)
 		}
@@ -44,15 +44,8 @@ func writeComma(s *strings.Builder) {
 	s.Write([]byte(",\n"))
 }
 
-func writeStringColumn(s *strings.Builder, colName string, length int) {
-	sz := 255
-	for {
-		if length < sz {
-			break
-		}
-		sz += sz
-	}
-	s.WriteString(fmt.Sprintf("%s varchar(%d)", strings.ToLower(colName), sz))
+func writeStringColumn(s *strings.Builder, colName string) {
+	s.WriteString(fmt.Sprintf("%s text", strings.ToLower(colName)))
 }
 
 func writeDateColumn(s *strings.Builder, colName string) {
