@@ -137,9 +137,7 @@ func (s *Service) do(req *http.Request) (*cleosResponse, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer func() {
-		_ = res.Body.Close()
-	}()
+	defer res.Body.Close()
 
 	if res.StatusCode != http.StatusOK {
 		switch res.StatusCode {
@@ -163,6 +161,7 @@ func (s *Service) do(req *http.Request) (*cleosResponse, error) {
 			return nil, ErrUnknownStatus
 		}
 	}
+
 	content, err := ioutil.ReadAll(res.Body)
 	if err != nil {
 		return nil, err

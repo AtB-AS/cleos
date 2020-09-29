@@ -1,4 +1,4 @@
-package functions
+package fetch_report
 
 import (
 	"context"
@@ -96,15 +96,14 @@ func configFromEnvironment(env string) config {
 	return cfg
 }
 
-// DailyClearing is triggered by pubsub with a payload of JobDescription. It
+// FetchCLEOSReport is triggered by pubsub with a payload of JobDescription. It
 // fetches the most recent CLEOS clearing report and uploads it to a cloud
 // storage bucket. After successful upload it updates the scheduled job that
 // triggers it to include the most recent report ID in its payload
-func DailyClearing(ctx context.Context, m PubSubMessage) error {
+func FetchCLEOSReport(ctx context.Context, m PubSubMessage) error {
 	var job jobDescription
 	var currentID string
-	err := json.Unmarshal(m.Data, &job)
-	if err != nil {
+	if err := json.Unmarshal(m.Data, &job); err != nil {
 		return err
 	}
 
@@ -121,7 +120,7 @@ func DailyClearing(ctx context.Context, m PubSubMessage) error {
 		w := newBucketWriter(
 			ctx,
 			bucketHandle,
-			fmt.Sprintf("%s_%s", report.ReportID, report.Filename),
+			fmt.Sprintf("%s_%s", report.ID, report.Filename),
 			report.ContentType)
 		if _, err := w.Write(report.Content); err != nil {
 			return err
@@ -130,11 +129,11 @@ func DailyClearing(ctx context.Context, m PubSubMessage) error {
 			return err
 		}
 
-		log.Printf("successfully fetched report %s (%s) in %s", report.ReportID, report.Filename, time.Since(start))
-		currentID = report.ReportID
+		log.Printf("successfully fetched report %s (%s) in %s", report.ID, report.Filename, time.Since(start))
+		currentID = report.ID
 	}
 
-	if err = updateScheduledPayload(currentID); err != nil {
+	if err := updateScheduledPayload(currentID); err != nil {
 		return err
 	}
 	return nil
