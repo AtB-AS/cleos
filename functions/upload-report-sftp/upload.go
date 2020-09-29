@@ -14,36 +14,19 @@ import (
 )
 
 var storageClient *storage.Client
-var sftpClient *sftp.Client
+var signer ssh.Signer
 
+// Initialize global variables that may survive function invocations.
 func init() {
 	var err error
 	ctx := context.Background()
-	key, err := getPrivateKey(ctx, os.Getenv("KEY_NAME"))
+
+	privKey, err := accessSecret(ctx, os.Getenv("SECRET_NAME"))
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	signer, err := ssh.ParsePrivateKey(key)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	username := os.Getenv("SSH_USER")
-	config := ssh.ClientConfig{
-		User: username,
-		Auth: []ssh.AuthMethod{
-			ssh.PublicKeys(signer),
-		},
-	}
-
-	addr := os.Getenv("SSH_HOST")
-	client, err := ssh.Dial("tcp", addr, &config)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	sftpClient, err = sftp.NewClient(client)
+	signer, err = ssh.ParsePrivateKey(privKey)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -54,30 +37,55 @@ func init() {
 	}
 }
 
-func getPrivateKey(ctx context.Context, keyName string) ([]byte, error) {
+// accessSecret accesses the payload of secret using Secret Manager.
+func accessSecret(ctx context.Context, secret string) ([]byte, error) {
 	client, err := secretmanager.NewClient(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	secret, err := client.GetSecret(ctx, &secretmanagerpb.GetSecretRequest{
-		Name: keyName,
+	res, err := client.AccessSecretVersion(ctx, &secretmanagerpb.AccessSecretVersionRequest{
+		Name: secret,
 	})
 	if err != nil {
 		return nil, err
 	}
 
-	return []byte(secret.String()), nil
+	return res.Payload.Data, nil
 }
 
+// UploadCLEOSReportToSFTP retrieves the contents of a Google Cloud Storage
+// Object identified by e and uploads it to an SFTP endpoint.
 func UploadCLEOSReportToSFTP(ctx context.Context, e GCSEvent) error {
+	username := os.Getenv("SSH_USER")
+	config := ssh.ClientConfig{
+		User:            username,
+		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
+		Auth: []ssh.AuthMethod{
+			ssh.PublicKeys(signer),
+		},
+	}
+
+	addr := os.Getenv("SSH_HOST")
+	client, err := ssh.Dial("tcp", addr, &config)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer client.Close()
+
+	sftpClient, err := sftp.NewClient(client)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer sftpClient.Close()
+
 	reader, err := storageClient.Bucket(e.Bucket).Object(e.Name).NewReader(ctx)
 	if err != nil {
 		return err
 	}
 	defer reader.Close()
 
-	writer, err := sftpClient.Open(path.Join(os.Getenv("SFTP_DIR"), e.Name))
+	writer, err := sftpClient.Create(path.Join(os.Getenv("SFTP_DIR"), e.Name))
 	if err != nil {
 		return err
 	}
