@@ -30,6 +30,7 @@ const (
 type ErrCleos string
 
 const (
+	ErrNotFound         ErrCleos = "a report for the specified template id was not found"
 	ErrAllDownloaded    ErrCleos = "all available reports downloaded, retry later"
 	ErrNotGenerated     ErrCleos = "report is being generated, retry later"
 	ErrUnauthorized     ErrCleos = "unauthorized"
@@ -142,6 +143,8 @@ func (s *Service) do(req *http.Request) (*cleosResponse, error) {
 
 	if res.StatusCode != http.StatusOK {
 		switch res.StatusCode {
+		case http.StatusNotFound:
+			return nil, ErrNotFound
 		case http.StatusAccepted:
 			return nil, ErrAllDownloaded
 		case http.StatusNoContent:
