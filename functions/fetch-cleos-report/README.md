@@ -39,5 +39,5 @@ You can trigger a run by publishing a message to the trigger topic. To make the
 function fetch all reports, beginning from the first published report:
 
 ````shell script
-$ gcloud pubsub topics publish $TRIGGER_TOPIC --message='{"previousReportId": 0}'
+$ gcloud pubsub topics publish $TRIGGER_TOPIC --message='{"previousReportId": "0"}'
 ````
