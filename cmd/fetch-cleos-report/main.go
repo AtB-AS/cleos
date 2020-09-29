@@ -103,5 +103,5 @@ func main() {
 		os.Exit(1)
 	}
 
-	fmt.Fprintf(os.Stdout, "Successfully wrote file: %s\n", file.Name())
+	fmt.Fprintf(os.Stdout, "Successfully wrote file: %s with report ID %s\n", file.Name(), report.ID)
 }
