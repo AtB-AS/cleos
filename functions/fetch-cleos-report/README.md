@@ -23,7 +23,7 @@ function will pick up where it previously failed on the next invocation.
 ### Configuration
 
 #### Environment
-DailyClearing expects to find these environment variables:
+FetchCLEOSReport expects to find these environment variables:
 - `APP_ENV`: The CLEOS environment to communicate with. Possible values are `prod`, `staging` and `dev`.
 - `BUCKET_ID`: The bucket to place reports in.
 - `CLEOS_TEMPLATE_ID`: The CLEOS template ID to fetch.
