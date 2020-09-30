@@ -1,4 +1,4 @@
-module github.com/atb-as/cleos/functions/upload-report-sftp
+module github.com/atb-as/cleos/functions/upload-gcs-object-sftp
 
 go 1.15
 
