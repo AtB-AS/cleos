@@ -89,6 +89,7 @@ func UploadGCSObjectToSFTP(ctx context.Context, e GCSEvent) error {
 	if err != nil {
 		return err
 	}
+	defer writer.Close()
 
 	_, err = writer.ReadFrom(reader)
 	if err != nil {
