@@ -1,4 +1,4 @@
-package upload_report_sftp
+package upload_gcs_object_sftp
 
 import (
 	"context"
@@ -54,9 +54,9 @@ func accessSecret(ctx context.Context, secret string) ([]byte, error) {
 	return res.Payload.Data, nil
 }
 
-// UploadCLEOSReportToSFTP retrieves the contents of a Google Cloud Storage
+// UploadGCSObjectToSFTP retrieves the contents of a Google Cloud Storage
 // Object identified by e and uploads it to an SFTP endpoint.
-func UploadCLEOSReportToSFTP(ctx context.Context, e GCSEvent) error {
+func UploadGCSObjectToSFTP(ctx context.Context, e GCSEvent) error {
 	username := os.Getenv("SSH_USER")
 	config := ssh.ClientConfig{
 		User:            username,

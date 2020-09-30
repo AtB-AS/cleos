@@ -1,4 +1,4 @@
-package upload_report_sftp
+package upload_gcs_object_sftp
 
 import "time"
 
