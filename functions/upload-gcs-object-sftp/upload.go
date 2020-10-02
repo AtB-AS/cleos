@@ -2,6 +2,7 @@ package upload_gcs_object_sftp
 
 import (
 	"context"
+	"io"
 	"log"
 	"os"
 	"path"
@@ -79,19 +80,19 @@ func UploadGCSObjectToSFTP(ctx context.Context, e GCSEvent) error {
 	}
 	defer sftpClient.Close()
 
-	reader, err := storageClient.Bucket(e.Bucket).Object(e.Name).NewReader(ctx)
+	r, err := storageClient.Bucket(e.Bucket).Object(e.Name).NewReader(ctx)
 	if err != nil {
 		return err
 	}
-	defer reader.Close()
+	defer r.Close()
 
-	writer, err := sftpClient.Create(path.Join(os.Getenv("SFTP_DIR"), e.Name))
+	w, err := sftpClient.Create(path.Join(os.Getenv("SFTP_DIR"), e.Name))
 	if err != nil {
 		return err
 	}
-	defer writer.Close()
+	defer w.Close()
 
-	_, err = writer.ReadFrom(reader)
+	_, err = io.Copy(w, r)
 	if err != nil {
 		return err
 	}
