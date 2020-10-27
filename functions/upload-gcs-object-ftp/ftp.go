@@ -70,15 +70,15 @@ func UploadGCSObjectToFTP(ctx context.Context, e GCSEvent) error {
 	}
 	defer conn.Quit()
 
-	env := os.Getenv("APP_ENV")
-	pw := os.Getenv("FTP_PASSWORD")
-	user := os.Getenv("FTP_USER")
-	if err := conn.Login(user, pw); err != nil {
-		return err
-	}
-
 	var g errgroup.Group
 	g.Go(func() error {
+		env := os.Getenv("APP_ENV")
+		pw := os.Getenv("FTP_PASSWORD")
+		user := os.Getenv("FTP_USER")
+		if err := conn.Login(user, pw); err != nil {
+			return err
+		}
+
 		dirs, err := conn.List(".")
 		if err != nil {
 			return err
