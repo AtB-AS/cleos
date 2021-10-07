@@ -103,6 +103,8 @@ func UploadGCSObjectToFTP(ctx context.Context, e GCSEvent) error {
 			return err
 		}
 
+		fmt.Printf("Uploaded file '%s'\n", e.Name)
+
 		return nil
 	})
 
