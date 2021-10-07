@@ -1,4 +1,4 @@
-functions/vendor
+vendor
 .idea
 .vscode
 .env
